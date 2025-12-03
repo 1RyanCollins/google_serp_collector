@@ -1,8 +1,5 @@
-// popup.js
-
 document.addEventListener("DOMContentLoaded", () => {
 
-    // Grab links button
     document.getElementById("grab").addEventListener("click", async () => {
         try {
             let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -10,7 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const results = await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
-                func: grabTextFragmentLinks
+                func: grabTextFragmentLinksWithType
             });
 
             if (!results || !results[0] || !results[0].result) {
@@ -18,11 +15,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const rawLinks = results[0].result;
-            const links = rawLinks.map(link => cleanText(link)).filter(l => l);
+            const rows = results[0].result;
 
-            // Display with a safe hyphen bullet
-            document.getElementById("links").value = links.map(link => `- ${link}`).join("\n");
+            // Display links in textarea with bullet and include type info
+            document.getElementById("links").value = rows.map(r =>
+                `- ${r.type}: ${r.link_raw}`
+            ).join("\n");
+
+            // Save for CSV download
+            window._scrapedRows = rows;
 
         } catch (err) {
             console.error(err);
@@ -30,14 +31,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Copy to clipboard button
     document.getElementById("copy").addEventListener("click", async () => {
         const text = document.getElementById("links").value;
-        if (!text) {
-            alert("Nothing to copy!");
-            return;
-        }
-
+        if (!text) { alert("Nothing to copy!"); return; }
         try {
             await navigator.clipboard.writeText(text);
             alert("Copied to clipboard!");
@@ -47,51 +43,69 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Optional download button (still works as TXT)
     document.getElementById("download")?.addEventListener("click", () => {
-        const text = document.getElementById("links").value;
-        if (!text) {
-            alert("Nothing to download!");
+        if (!window._scrapedRows || window._scrapedRows.length === 0) {
+            alert("No data to download. Grab links first.");
             return;
         }
 
-        const blob = new Blob([text], { type: "text/plain" });
+        const csvHeader = ['query','link_raw','link_cleaned','type'];
+        const csvRows = window._scrapedRows.map(r =>
+            [
+                `"${r.query.replace(/"/g,'""')}"`,
+                `"${r.link_raw}"`,
+                `"${r.link_cleaned}"`,
+                `"${r.type}"`
+            ].join(',')
+        );
+        const csvContent = [csvHeader.join(','), ...csvRows].join('\n');
+
+        const blob = new Blob([csvContent], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
-        chrome.downloads.download({
-            url: url,
-            filename: "text_fragment_links.txt"
-        });
+        chrome.downloads.download({ url: url, filename: "text_fragment_links.csv" });
     });
 
 });
 
-// --- Helper functions ---
-
-// Clean non-printable / weird characters
+// Clean text
 function cleanText(str) {
     if (!str && str !== 0) return "";
     let s = String(str);
-    s = s.replace(/\uFFFD/g, '');  // replacement char
-    s = s.replace(/â€¢/g, '');     // explicit removal
-    s = s.replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ''); // remove control/non-ASCII
-    s = s.trim().replace(/\s+/g, ' ');
+    s = s.replace(/\uFFFD/g,'').replace(/â€¢/g,'').replace(/[^\x09\x0A\x0D\x20-\x7E]/g,'');
+    s = s.trim().replace(/\s+/g,' ');
     return s;
 }
 
-// Grab all #:~:text= links on the page and remove duplicates
-function grabTextFragmentLinks() {
-    const links = [];
-    const anchors = document.querySelectorAll("a[href]");
+// Grab links with type detection
+function grabTextFragmentLinksWithType() {
+    const rows = [];
+    const query = document.querySelector("textarea[name='q'], input[name='q'], input[aria-label='Search']")?.value || "";
+
+    const anchors = Array.from(document.querySelectorAll("a[href*=':~:text=']"));
+
     anchors.forEach(a => {
-        let href = a.href;
-        if (href && href.includes(":~:text=")) {
-            try {
-                const mainUrl = href.split("#")[0];
-                links.push(mainUrl);
-            } catch (e) {}
-        }
+        try {
+            const href = a.href;
+            const link_cleaned = href.split("#")[0];
+
+            // Detect location/type
+            let type = "Other";
+            if (a.closest("div[data-hveid][data-async-context], div[jscontroller='EEGHee'], div[jscontroller='VXpV4c'], div[jscontroller='Uut0Ic']")) {
+                type = "AI Overview";
+            } else if (a.closest("div[jsname='Cpkphb'], div[jscontroller='CedFv']")) {
+                type = "People Also Ask";
+            }
+
+            rows.push({
+                query: cleanText(query),
+                link_raw: href,
+                link_cleaned: link_cleaned,
+                type
+            });
+        } catch (e) {}
     });
-    return Array.from(new Set(links));
+
+    return rows;
 }
 
 
