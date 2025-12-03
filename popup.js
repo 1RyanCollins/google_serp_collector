@@ -33,10 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Display links in textarea
             document.getElementById("links").value = rows.map(r =>
-                `- ${r.type}: ${r.link_raw}`
+                r
             ).join("\n");
 
-            // Save for CSV
             window._scrapedRows = rows;
 
         } catch (err) {
@@ -65,33 +64,16 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const csvHeader = ['query','link_raw','link_cleaned','type'];
-        const csvRows = window._scrapedRows.map(r =>
-            [
-                `"${r.query.replace(/"/g,'""')}"`,
-                `"${r.link_raw}"`,
-                `"${r.link_cleaned}"`,
-                `"${r.type}"`
-            ].join(',')
-        );
+        const csvHeader = ['url'];
+        const csvRows = window._scrapedRows.map(r => `"${r.replace(/"/g,'""')}"`);
         const csvContent = [csvHeader.join(','), ...csvRows].join('\n');
 
         const blob = new Blob([csvContent], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
-        chrome.downloads.download({ url: url, filename: "text_fragment_links.csv" });
+        chrome.downloads.download({ url: url, filename: "links.csv" });
     });
 
 });
-
-// --- Helpers ---
-
-function cleanText(str) {
-    if (!str && str !== 0) return "";
-    let s = String(str);
-    s = s.replace(/\uFFFD/g,'').replace(/â€¢/g,'').replace(/[^\x09\x0A\x0D\x20-\x7E]/g,'');
-    s = s.trim().replace(/\s+/g,' ');
-    return s;
-}
 
 // --- Page Script: Enable section selection ---
 function enableSectionSelection() {
@@ -126,47 +108,12 @@ function enableSectionSelection() {
 // --- Page Script: Grab all links from selected section ---
 function grabLinksFromSelectedSection() {
     const container = window._selectedSection || document.body;
-    const query = document.querySelector("textarea[name='q'], input[name='q'], input[aria-label='Search']")?.value || "";
-
     const anchors = Array.from(container.querySelectorAll("a[href]"));
-    const rows = [];
+    const links = anchors.map(a => a.href);
 
-    anchors.forEach(a => {
-        try {
-            const href = a.href;
-            if (!href) return;
-
-            const link_cleaned = href.split("#")[0];
-
-            let type = "Custom Section"; // default
-            if (a.closest("div[data-hveid][data-async-context], div[jscontroller='EEGHee'], div[jscontroller='VXpV4c'], div[jscontroller='Uut0Ic']")) {
-                type = "AI Overview";
-            } else if (a.closest("div[jsname='Cpkphb'], div[jscontroller='CedFv']")) {
-                type = "People Also Ask";
-            }
-
-            rows.push({
-                query: cleanText(query),
-                link_raw: href,
-                link_cleaned: link_cleaned,
-                type
-            });
-        } catch (e) {
-            // ignore broken links
-        }
-    });
-
-    // Remove duplicates by raw URL
-    const uniqueRows = [];
-    const seen = new Set();
-    rows.forEach(r => {
-        if (!seen.has(r.link_raw)) {
-            seen.add(r.link_raw);
-            uniqueRows.push(r);
-        }
-    });
-
-    return uniqueRows;
+    // Remove duplicates
+    const uniqueLinks = Array.from(new Set(links));
+    return uniqueLinks;
 }
 
 
