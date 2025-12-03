@@ -2,21 +2,16 @@
   "manifest_version": 3,
   "name": "Google SERP Link Collector",
   "version": "1.0",
-  "description": "Collects links from Google search result pages (SERP).",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "downloads"
-  ],
+  "description": "Collects links from Google search results.",
+  "permissions": ["activeTab", "scripting", "downloads"],
+  "icons": {
+    "48": "icons8-link-48.png"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "48": "icons/icons8-link-48.png"
+      "48": "icons8-link-48.png"
     }
-  },
-  "icons": {
-    "48": "icons/icons8-link-48.png"
   }
 }
-
 
