@@ -2,7 +2,7 @@ document.getElementById("grab").addEventListener("click", async () => {
     let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        func: grabAIOverviewLinks
+        func: grabAIOverviewLinksFromTable
     }, (results) => {
         if(results && results[0].result){
             const links = results[0].result;
@@ -22,31 +22,39 @@ document.getElementById("download").addEventListener("click", () => {
     });
 });
 
-function grabAIOverviewLinks() {
+function grabAIOverviewLinksFromTable() {
     const links = [];
 
-    // Select all <a> elements with class KEVENd (Google search result links)
-    const anchors = document.querySelectorAll("a.KEVENd[href]");
-    anchors.forEach(a => {
-        let href = a.href;
+    // Grab the table <ul> with class zVKf0d w2xCsc
+    const tables = document.querySelectorAll("ul.zVKf0d.w2xCsc");
+    tables.forEach(table => {
+        // Get all <a class="KEVENd"> links inside the table
+        const anchors = table.querySelectorAll("a.KEVENd[href]");
+        anchors.forEach(a => {
+            let href = a.href;
 
-        // Only include links that have 'ai' or 'artificial-intelligence' in the URL
-        if ((href.toLowerCase().includes("ai") || href.toLowerCase().includes("artificial-intelligence"))) {
+            // Filter only links containing "ai" or "artificial-intelligence"
+            if (href.toLowerCase().includes("ai") || href.toLowerCase().includes("artificial-intelligence")) {
 
-            // Direct links
-            if (href.startsWith("http") || href.startsWith("https")) {
-                links.push(href);
-            } 
-            // Handle Google redirect URLs (/url?sa=t&...)
-            else if (href.startsWith("/url?")) {
-                try {
-                    const urlParams = new URLSearchParams(href.split("?")[1]);
-                    const realUrl = urlParams.get("url") || urlParams.get("q");
-                    if (realUrl) links.push(realUrl);
-                } catch (e) {}
+                // Direct link
+                if (href.startsWith("http") || href.startsWith("https")) {
+                    links.push(href);
+                } 
+                // Handle Google redirect URLs (/url?sa=t...)
+                else if (href.startsWith("/url?")) {
+                    try {
+                        const urlParams = new URLSearchParams(href.split("?")[1]);
+                        const realUrl = urlParams.get("url") || urlParams.get("q");
+                        if (realUrl) links.push(realUrl);
+                    } catch (e) {}
+                }
             }
-        }
+        });
     });
+
+    return Array.from(new Set(links)); // remove duplicates
+}
+
 
     return Array.from(new Set(links)); // remove duplicates
 }
