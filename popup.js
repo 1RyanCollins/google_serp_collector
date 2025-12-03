@@ -36,6 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 `- ${r.type}: ${r.link_raw}`
             ).join("\n");
 
+            // Save for CSV
             window._scrapedRows = rows;
 
         } catch (err) {
@@ -122,17 +123,19 @@ function enableSectionSelection() {
     document.addEventListener('click', clickHandler, true);
 }
 
-// --- Page Script: Grab links from selected section ---
+// --- Page Script: Grab all links from selected section ---
 function grabLinksFromSelectedSection() {
     const container = window._selectedSection || document.body;
     const query = document.querySelector("textarea[name='q'], input[name='q'], input[aria-label='Search']")?.value || "";
 
-    const anchors = Array.from(container.querySelectorAll("a[href*=':~:text=']"));
+    const anchors = Array.from(container.querySelectorAll("a[href]"));
     const rows = [];
 
     anchors.forEach(a => {
         try {
             const href = a.href;
+            if (!href) return;
+
             const link_cleaned = href.split("#")[0];
 
             let type = "Custom Section"; // default
@@ -148,10 +151,22 @@ function grabLinksFromSelectedSection() {
                 link_cleaned: link_cleaned,
                 type
             });
-        } catch (e) {}
+        } catch (e) {
+            // ignore broken links
+        }
     });
 
-    return rows;
+    // Remove duplicates by raw URL
+    const uniqueRows = [];
+    const seen = new Set();
+    rows.forEach(r => {
+        if (!seen.has(r.link_raw)) {
+            seen.add(r.link_raw);
+            uniqueRows.push(r);
+        }
+    });
+
+    return uniqueRows;
 }
 
 
