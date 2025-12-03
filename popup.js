@@ -43,7 +43,3 @@ function grabTextFragmentLinks() {
 }
 
 
-
-    return Array.from(new Set(links)); // remove duplicates
-}
-
