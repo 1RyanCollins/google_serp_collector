@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
 
     // --- Select Section Mode ---
-    document.getElementById("selectSection").addEventListener("click", async () => {
+    document.getElementById("selectSection")?.addEventListener("click", async () => {
         let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.id) return;
 
@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // --- Grab Links ---
-    document.getElementById("grab").addEventListener("click", async () => {
+    document.getElementById("grab")?.addEventListener("click", async () => {
         try {
             let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab?.id) throw new Error("No active tab found.");
@@ -29,12 +29,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const rows = results[0].result;
+            let rows = results[0].result;
 
-            // Display links in textarea
-            document.getElementById("links").value = rows.map(r =>
-                r
-            ).join("\n");
+            // Filter out unwanted links
+            rows = rows.filter(link => !link.includes("https://policies.google.com/privacy"));
+
+            // Display as bullet points
+            document.getElementById("links").value = rows.map(link => `• ${link}`).join("\n");
 
             window._scrapedRows = rows;
 
@@ -45,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // --- Copy to clipboard ---
-    document.getElementById("copy").addEventListener("click", async () => {
+    document.getElementById("copy")?.addEventListener("click", async () => {
         const text = document.getElementById("links").value;
         if (!text) { alert("Nothing to copy!"); return; }
         try {
@@ -58,7 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // --- Download CSV ---
-    document.getElementById("download").addEventListener("click", () => {
+    document.getElementById("download")?.addEventListener("click", () => {
         if (!window._scrapedRows || window._scrapedRows.length === 0) {
             alert("No data to download. Grab links first.");
             return;
@@ -115,5 +116,6 @@ function grabLinksFromSelectedSection() {
     const uniqueLinks = Array.from(new Set(links));
     return uniqueLinks;
 }
+
 
 
