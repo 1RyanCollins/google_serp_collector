@@ -1,7 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
 
     // --- Feature Buttons ---
-
     document.getElementById("grabPAA")?.addEventListener("click", async () => {
         await grabFeature(grabPeopleAlsoAskLinks);
     });
@@ -168,33 +167,39 @@ function grabAIOverviewLinks() {
     )];
 }
 
-// --- Grab Videos ---
+// --- Grab Videos (role="heading">Videos) ---
 function grabVideosLinks() {
-    const heading = [...document.querySelectorAll('div, span, h1, h2, h3')]
+    const heading = [...document.querySelectorAll('[role="heading"]')]
         .find(el => el.innerText.trim() === 'Videos');
     if (!heading) return [];
 
-    const container = heading.closest('[role="region"]') || heading.parentElement;
+    const container = heading.parentElement || heading.closest('[role="region"]');
+    if (!container) return [];
+
+    const anchors = Array.from(container.querySelectorAll('a[href]'));
 
     return [...new Set(
-        [...container.querySelectorAll('a[href]')]
+        anchors
             .map(a => a.href)
-            .filter(h => h.includes('youtube.com') || !h.includes('google.com'))
+            .filter(h => h && !h.includes('google.com'))
     )];
 }
 
-// --- Grab Popular Products ---
+// --- Grab Popular Products (role="heading">Popular products) ---
 function grabPopularProductsLinks() {
-    const heading = [...document.querySelectorAll('div, span, h1, h2, h3')]
+    const heading = [...document.querySelectorAll('[role="heading"]')]
         .find(el => el.innerText.trim() === 'Popular products');
     if (!heading) return [];
 
-    const container = heading.closest('[role="region"]') || heading.parentElement;
+    const container = heading.parentElement || heading.closest('[role="region"]');
+    if (!container) return [];
+
+    const anchors = Array.from(container.querySelectorAll('a[href]'));
 
     return [...new Set(
-        [...container.querySelectorAll('a[href]')]
+        anchors
             .map(a => a.href)
-            .filter(h => !h.includes('google.com'))
+            .filter(h => h && !h.includes('google.com'))
     )];
 }
 
