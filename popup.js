@@ -167,16 +167,12 @@ function grabAIOverviewLinks() {
     )];
 }
 
-// --- Grab Videos (role="heading">Videos) ---
+// --- Grab Videos (class KYaZsb) ---
 function grabVideosLinks() {
-    const heading = [...document.querySelectorAll('[role="heading"]')]
-        .find(el => el.innerText.trim() === 'Videos');
-    if (!heading) return [];
+    const containers = Array.from(document.querySelectorAll('.KYaZsb'));
+    if (!containers.length) return [];
 
-    const container = heading.parentElement || heading.closest('[role="region"]');
-    if (!container) return [];
-
-    const anchors = Array.from(container.querySelectorAll('a[href]'));
+    const anchors = containers.flatMap(container => Array.from(container.querySelectorAll('a[href]')));
 
     return [...new Set(
         anchors
@@ -185,16 +181,12 @@ function grabVideosLinks() {
     )];
 }
 
-// --- Grab Popular Products (role="heading">Popular products) ---
+// --- Grab Popular Products (class njFjte) ---
 function grabPopularProductsLinks() {
-    const heading = [...document.querySelectorAll('[role="heading"]')]
-        .find(el => el.innerText.trim() === 'Popular products');
-    if (!heading) return [];
+    const containers = Array.from(document.querySelectorAll('.njFjte'));
+    if (!containers.length) return [];
 
-    const container = heading.parentElement || heading.closest('[role="region"]');
-    if (!container) return [];
-
-    const anchors = Array.from(container.querySelectorAll('a[href]'));
+    const anchors = containers.flatMap(container => Array.from(container.querySelectorAll('a[href]')));
 
     return [...new Set(
         anchors
