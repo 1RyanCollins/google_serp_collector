@@ -181,12 +181,9 @@ function grabVideosLinks() {
     )];
 }
 
-// --- Grab Discussions and Forums (classes KYg7td + INpicf) ---
+// --- Grab Discussions and Forums (class MjjYud) ---
 function grabDiscussionsLinks() {
-    const containers = [
-        ...Array.from(document.querySelectorAll('.KYg7td')),
-        ...Array.from(document.querySelectorAll('.INpicf'))
-    ];
+    const containers = Array.from(document.querySelectorAll('.MjjYud'));
     if (!containers.length) return [];
 
     const anchors = containers.flatMap(container => Array.from(container.querySelectorAll('a[href]')));
@@ -197,6 +194,7 @@ function grabDiscussionsLinks() {
             .filter(h => h && !h.includes('google.com'))
     )];
 }
+
 
 
 
