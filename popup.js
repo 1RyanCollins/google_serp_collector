@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // ---------------------------
     // Feature buttons
     // ---------------------------
-    document.getElementById("grabPAA")?.addEventListener("click", () =>
+    document.getElementById("grabPAA").addEventListener("click", () =>
         grabFeature(() => {
             const h = [...document.querySelectorAll("*")]
                 .find(e => e.innerText.trim() === "People also ask");
@@ -12,82 +12,61 @@ document.addEventListener("DOMContentLoaded", () => {
             const c = h.closest("[role='region']") || h.parentElement;
             c.querySelectorAll("[role='button']").forEach(b => b.click());
 
-            return [...new Set(
-                [...c.querySelectorAll("a[href]")]
-                    .map(a => a.href)
-            )];
+            return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
         })
     );
 
-    document.getElementById("grabAI")?.addEventListener("click", () =>
+    document.getElementById("grabAI").addEventListener("click", () =>
         grabFeature(() => {
             const h = [...document.querySelectorAll("*")]
                 .find(e => e.innerText.trim() === "AI Overview");
             if (!h) return [];
 
             const c = h.closest("[role='region']") || h.parentElement;
-            return [...new Set(
-                [...c.querySelectorAll("a[href]")]
-                    .map(a => a.href)
-            )];
+            return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
         })
     );
 
-    document.getElementById("grabProducts")?.addEventListener("click", () =>
+    document.getElementById("grabProducts").addEventListener("click", () =>
         grabFeature(() => {
             const h = [...document.querySelectorAll("*")]
-                .find(e =>
-                    ["Popular products", "Products"]
-                        .includes(e.innerText.trim())
-                );
+                .find(e => ["Popular products", "Products"].includes(e.innerText.trim()));
             if (!h) return [];
 
             const c = h.closest("[role='region']") || h.parentElement;
-            return [...new Set(
-                [...c.querySelectorAll("a[href]")]
-                    .map(a => a.href)
-            )];
+            return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
         })
     );
 
-    document.getElementById("grabVideos")?.addEventListener("click", () =>
+    document.getElementById("grabVideos").addEventListener("click", () =>
         grabFeature(() => {
             const h = [...document.querySelectorAll("*")]
                 .find(e => e.innerText.trim() === "Videos");
             if (!h) return [];
 
             const c = h.closest("[role='region']") || h.parentElement;
-            return [...new Set(
-                [...c.querySelectorAll("a[href]")]
-                    .map(a => a.href)
-            )];
+            return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
         })
     );
 
     async function grabFeature(func) {
-        try {
-            let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (!tab?.id) return;
+        let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.id) return;
 
-            const res = await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                func
-            });
+        const res = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func
+        });
 
-            const rows = res?.[0]?.result || [];
-            document.getElementById("links").value = rows.join("\n");
-            window._scrapedRows = rows;
-
-        } catch (e) {
-            console.error(e);
-            alert("Error grabbing feature");
-        }
+        const rows = res?.[0]?.result || [];
+        document.getElementById("links").value = rows.join("\n");
+        window._scrapedRows = rows;
     }
 
     // ---------------------------
     // Manual section selection
     // ---------------------------
-    document.getElementById("selectSection")?.addEventListener("click", async () => {
+    document.getElementById("selectSection").addEventListener("click", async () => {
         let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.id) return;
 
@@ -96,10 +75,10 @@ document.addEventListener("DOMContentLoaded", () => {
             func: enableSectionSelection
         });
 
-        alert("Hover a section, click it, then press 'Grab Links'.");
+        alert("Hover over a section, click it, then press 'Grab Links'.");
     });
 
-    document.getElementById("grab")?.addEventListener("click", async () => {
+    document.getElementById("grab").addEventListener("click", async () => {
         let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.id) return;
 
@@ -114,16 +93,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ---------------------------
-    // Copy + Download
+    // Copy & Download
     // ---------------------------
-    document.getElementById("copy")?.addEventListener("click", async () => {
+    document.getElementById("copy").addEventListener("click", async () => {
         const text = document.getElementById("links").value;
         if (!text) return alert("Nothing to copy");
         await navigator.clipboard.writeText(text);
         alert("Copied!");
     });
 
-    document.getElementById("download")?.addEventListener("click", () => {
+    document.getElementById("download").addEventListener("click", () => {
         if (!window._scrapedRows?.length) return alert("No data");
 
         const csv = ["url", ...window._scrapedRows.map(
@@ -155,7 +134,7 @@ function enableSectionSelection() {
         document.removeEventListener("mouseover", over, true);
         document.removeEventListener("mouseout", out, true);
         document.removeEventListener("click", click, true);
-        window._selectedSection = e.target.closest("[role='region']") || e.target;
+        window._selectedSection = e.target;
         alert("Section selected");
     }
 
@@ -166,11 +145,9 @@ function enableSectionSelection() {
 
 function grabLinksFromSelectedSection() {
     const c = window._selectedSection || document.body;
-    return [...new Set(
-        [...c.querySelectorAll("a[href]")]
-            .map(a => a.href)
-    )];
+    return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
 }
+
 
 
 
