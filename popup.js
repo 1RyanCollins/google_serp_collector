@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await grabFeature(grabVideosLinks);
     });
 
-    document.getElementById("grabProducts")?.addEventListener("click", async () => {
+    document.getElementById("grabDiscussions")?.addEventListener("click", async () => {
         await grabFeature(grabDiscussionsLinks);
     });
 
@@ -181,16 +181,15 @@ function grabVideosLinks() {
     )];
 }
 
-// --- Grab Discussions and Forums (role="heading" containing discussion/forum) ---
+// --- Grab Discussions and Forums (classes KYg7td + INpicf) ---
 function grabDiscussionsLinks() {
-    const heading = [...document.querySelectorAll('[role="heading"]')]
-        .find(el => /discussion|forum/i.test(el.innerText.trim()));
-    if (!heading) return [];
+    const containers = [
+        ...Array.from(document.querySelectorAll('.KYg7td')),
+        ...Array.from(document.querySelectorAll('.INpicf'))
+    ];
+    if (!containers.length) return [];
 
-    const container = heading.parentElement || heading.closest('[role="region"]');
-    if (!container) return [];
-
-    const anchors = Array.from(container.querySelectorAll('a[href]'));
+    const anchors = containers.flatMap(container => Array.from(container.querySelectorAll('a[href]')));
 
     return [...new Set(
         anchors
