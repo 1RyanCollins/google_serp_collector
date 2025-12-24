@@ -1,22 +1,67 @@
 document.addEventListener("DOMContentLoaded", () => {
 
     // ---------------------------
-    // Feature button handlers
+    // Feature buttons
     // ---------------------------
     document.getElementById("grabPAA")?.addEventListener("click", () =>
-        grabFeature(grabPeopleAlsoAskLinks)
+        grabFeature(() => {
+            const h = [...document.querySelectorAll("*")]
+                .find(e => e.innerText.trim() === "People also ask");
+            if (!h) return [];
+
+            const c = h.closest("[role='region']") || h.parentElement;
+            c.querySelectorAll("[role='button']").forEach(b => b.click());
+
+            return [...new Set(
+                [...c.querySelectorAll("a[href]")]
+                    .map(a => a.href)
+            )];
+        })
     );
 
     document.getElementById("grabAI")?.addEventListener("click", () =>
-        grabFeature(grabAIOverviewLinks)
+        grabFeature(() => {
+            const h = [...document.querySelectorAll("*")]
+                .find(e => e.innerText.trim() === "AI Overview");
+            if (!h) return [];
+
+            const c = h.closest("[role='region']") || h.parentElement;
+            return [...new Set(
+                [...c.querySelectorAll("a[href]")]
+                    .map(a => a.href)
+            )];
+        })
     );
 
     document.getElementById("grabProducts")?.addEventListener("click", () =>
-        grabFeature(grabPopularProductsLinks)
+        grabFeature(() => {
+            const h = [...document.querySelectorAll("*")]
+                .find(e =>
+                    ["Popular products", "Products"]
+                        .includes(e.innerText.trim())
+                );
+            if (!h) return [];
+
+            const c = h.closest("[role='region']") || h.parentElement;
+            return [...new Set(
+                [...c.querySelectorAll("a[href]")]
+                    .map(a => a.href)
+            )];
+        })
     );
 
     document.getElementById("grabVideos")?.addEventListener("click", () =>
-        grabFeature(grabVideoLinks)
+        grabFeature(() => {
+            const h = [...document.querySelectorAll("*")]
+                .find(e => e.innerText.trim() === "Videos");
+            if (!h) return [];
+
+            const c = h.closest("[role='region']") || h.parentElement;
+            return [...new Set(
+                [...c.querySelectorAll("a[href]")]
+                    .map(a => a.href)
+            )];
+        })
     );
 
     async function grabFeature(func) {
@@ -32,9 +77,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const rows = res?.[0]?.result || [];
             document.getElementById("links").value = rows.join("\n");
             window._scrapedRows = rows;
+
         } catch (e) {
-            alert("Error grabbing feature");
             console.error(e);
+            alert("Error grabbing feature");
         }
     }
 
@@ -80,7 +126,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("download")?.addEventListener("click", () => {
         if (!window._scrapedRows?.length) return alert("No data");
 
-        const csv = ["url", ...window._scrapedRows.map(u => `"${u.replace(/"/g,'""')}"`)].join("\n");
+        const csv = ["url", ...window._scrapedRows.map(
+            u => `"${u.replace(/"/g, '""')}"`
+        )].join("\n");
+
         const blob = new Blob([csv], { type: "text/csv" });
         chrome.downloads.download({
             url: URL.createObjectURL(blob),
@@ -97,10 +146,12 @@ function enableSectionSelection() {
     style.textContent = `.highlighted-section { outline: 3px solid red !important; }`;
     document.head.appendChild(style);
 
-    function over(e){ e.target.classList.add("highlighted-section"); }
-    function out(e){ e.target.classList.remove("highlighted-section"); }
-    function click(e){
-        e.preventDefault(); e.stopPropagation();
+    function over(e) { e.target.classList.add("highlighted-section"); }
+    function out(e) { e.target.classList.remove("highlighted-section"); }
+
+    function click(e) {
+        e.preventDefault();
+        e.stopPropagation();
         document.removeEventListener("mouseover", over, true);
         document.removeEventListener("mouseout", out, true);
         document.removeEventListener("click", click, true);
@@ -115,42 +166,12 @@ function enableSectionSelection() {
 
 function grabLinksFromSelectedSection() {
     const c = window._selectedSection || document.body;
-    return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
+    return [...new Set(
+        [...c.querySelectorAll("a[href]")]
+            .map(a => a.href)
+    )];
 }
 
-// ---------------------------
-// Feature grabbers
-// ---------------------------
-function grabPeopleAlsoAskLinks() {
-    const h = [...document.querySelectorAll("*")].find(e => e.innerText.trim() === "People also ask");
-    if (!h) return [];
-    const c = h.closest("[role='region']") || h.parentElement;
-    c.querySelectorAll("[role='button']").forEach(b => b.click());
-    return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
-}
-
-function grabAIOverviewLinks() {
-    const h = [...document.querySelectorAll("*")].find(e => e.innerText.trim() === "AI Overview");
-    if (!h) return [];
-    const c = h.closest("[role='region']") || h.parentElement;
-    return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
-}
-
-function grabPopularProductsLinks() {
-    const h = [...document.querySelectorAll("*")].find(e =>
-        ["Popular products", "Products"].includes(e.innerText.trim())
-    );
-    if (!h) return [];
-    const c = h.closest("[role='region']") || h.parentElement;
-    return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
-}
-
-function grabVideoLinks() {
-    const h = [...document.querySelectorAll("*")].find(e => e.innerText.trim() === "Videos");
-    if (!h) return [];
-    const c = h.closest("[role='region']") || h.parentElement;
-    return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
-}
 
 
 
