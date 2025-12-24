@@ -1,72 +1,36 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-    // ---------------------------
-    // Feature buttons
-    // ---------------------------
-    document.getElementById("grabPAA").addEventListener("click", () =>
-        grabFeature(() => {
-            const h = [...document.querySelectorAll("*")]
-                .find(e => e.innerText.trim() === "People also ask");
-            if (!h) return [];
+    // --- Feature Buttons ---
 
-            const c = h.closest("[role='region']") || h.parentElement;
-            c.querySelectorAll("[role='button']").forEach(b => b.click());
+    document.getElementById("grabPAA")?.addEventListener("click", async () => {
+        await grabFeature(grabPeopleAlsoAskLinks);
+    });
 
-            return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
-        })
-    );
+    document.getElementById("grabAI")?.addEventListener("click", async () => {
+        await grabFeature(grabAIOverviewLinks);
+    });
 
-    document.getElementById("grabAI").addEventListener("click", () =>
-        grabFeature(() => {
-            const h = [...document.querySelectorAll("*")]
-                .find(e => e.innerText.trim() === "AI Overview");
-            if (!h) return [];
+    async function grabFeature(featureFunc) {
+        try {
+            let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab?.id) throw new Error("No active tab found.");
 
-            const c = h.closest("[role='region']") || h.parentElement;
-            return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
-        })
-    );
+            const results = await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: featureFunc
+            });
 
-    document.getElementById("grabProducts").addEventListener("click", () =>
-        grabFeature(() => {
-            const h = [...document.querySelectorAll("*")]
-                .find(e => ["Popular products", "Products"].includes(e.innerText.trim()));
-            if (!h) return [];
-
-            const c = h.closest("[role='region']") || h.parentElement;
-            return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
-        })
-    );
-
-    document.getElementById("grabVideos").addEventListener("click", () =>
-        grabFeature(() => {
-            const h = [...document.querySelectorAll("*")]
-                .find(e => e.innerText.trim() === "Videos");
-            if (!h) return [];
-
-            const c = h.closest("[role='region']") || h.parentElement;
-            return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
-        })
-    );
-
-    async function grabFeature(func) {
-        let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab?.id) return;
-
-        const res = await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func
-        });
-
-        const rows = res?.[0]?.result || [];
-        document.getElementById("links").value = rows.join("\n");
-        window._scrapedRows = rows;
+            const rows = results?.[0]?.result || [];
+            document.getElementById("links").value = rows.join("\n");
+            window._scrapedRows = rows;
+        } catch (err) {
+            console.error(err);
+            alert("Error grabbing links: " + err.message);
+        }
     }
 
-    // ---------------------------
-    // Manual section selection
-    // ---------------------------
-    document.getElementById("selectSection").addEventListener("click", async () => {
+    // --- Select Section Mode ---
+    document.getElementById("selectSection")?.addEventListener("click", async () => {
         let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.id) return;
 
@@ -75,78 +39,127 @@ document.addEventListener("DOMContentLoaded", () => {
             func: enableSectionSelection
         });
 
-        alert("Hover over a section, click it, then press 'Grab Links'.");
+        alert("Hover over the section you want and click it. Then click 'Grab Links'.");
     });
 
-    document.getElementById("grab").addEventListener("click", async () => {
-        let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab?.id) return;
+    // --- Grab Links from Selected Section ---
+    document.getElementById("grab")?.addEventListener("click", async () => {
+        try {
+            let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab?.id) throw new Error("No active tab found.");
 
-        const res = await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: grabLinksFromSelectedSection
-        });
+            const results = await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: grabLinksFromSelectedSection
+            });
 
-        const rows = res?.[0]?.result || [];
-        document.getElementById("links").value = rows.join("\n");
-        window._scrapedRows = rows;
+            const rows = results?.[0]?.result || [];
+            document.getElementById("links").value = rows.join("\n");
+            window._scrapedRows = rows;
+        } catch (err) {
+            console.error(err);
+            alert("Error grabbing links: " + err.message);
+        }
     });
 
-    // ---------------------------
-    // Copy & Download
-    // ---------------------------
-    document.getElementById("copy").addEventListener("click", async () => {
+    // --- Copy to Clipboard ---
+    document.getElementById("copy")?.addEventListener("click", async () => {
         const text = document.getElementById("links").value;
-        if (!text) return alert("Nothing to copy");
-        await navigator.clipboard.writeText(text);
-        alert("Copied!");
+        if (!text) { alert("Nothing to copy!"); return; }
+        try {
+            await navigator.clipboard.writeText(text);
+            alert("Copied to clipboard!");
+        } catch (e) {
+            console.error(e);
+            alert("Copy failed: " + e.message);
+        }
     });
 
-    document.getElementById("download").addEventListener("click", () => {
-        if (!window._scrapedRows?.length) return alert("No data");
+    // --- Download CSV ---
+    document.getElementById("download")?.addEventListener("click", () => {
+        if (!window._scrapedRows || window._scrapedRows.length === 0) {
+            alert("No data to download. Grab links first.");
+            return;
+        }
 
-        const csv = ["url", ...window._scrapedRows.map(
-            u => `"${u.replace(/"/g, '""')}"`
-        )].join("\n");
+        const csvHeader = ['url'];
+        const csvRows = window._scrapedRows.map(r => `"${r.replace(/"/g,'""')}"`);
+        const csvContent = [csvHeader.join(','), ...csvRows].join('\n');
 
-        const blob = new Blob([csv], { type: "text/csv" });
-        chrome.downloads.download({
-            url: URL.createObjectURL(blob),
-            filename: "links.csv"
-        });
+        const blob = new Blob([csvContent], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        chrome.downloads.download({ url: url, filename: "links.csv" });
     });
+
 });
 
-// ---------------------------
-// Page-context helpers
-// ---------------------------
+// --- Page Script: Enable section selection ---
 function enableSectionSelection() {
-    const style = document.createElement("style");
-    style.textContent = `.highlighted-section { outline: 3px solid red !important; }`;
+    const style = document.createElement('style');
+    style.innerHTML = `.highlighted-section { outline: 3px solid red !important; cursor: pointer; }`;
     document.head.appendChild(style);
 
-    function over(e) { e.target.classList.add("highlighted-section"); }
-    function out(e) { e.target.classList.remove("highlighted-section"); }
-
-    function click(e) {
+    function mouseOverHandler(e) {
+        e.target.classList.add('highlighted-section');
+        e.stopPropagation();
+    }
+    function mouseOutHandler(e) {
+        e.target.classList.remove('highlighted-section');
+        e.stopPropagation();
+    }
+    function clickHandler(e) {
         e.preventDefault();
         e.stopPropagation();
-        document.removeEventListener("mouseover", over, true);
-        document.removeEventListener("mouseout", out, true);
-        document.removeEventListener("click", click, true);
-        window._selectedSection = e.target;
-        alert("Section selected");
+        document.removeEventListener('mouseover', mouseOverHandler, true);
+        document.removeEventListener('mouseout', mouseOutHandler, true);
+        document.removeEventListener('click', clickHandler, true);
+
+        alert('Section selected! Now click "Grab Links".');
+        window._selectedSection = e.target.closest('[role="region"]') || e.target;
     }
 
-    document.addEventListener("mouseover", over, true);
-    document.addEventListener("mouseout", out, true);
-    document.addEventListener("click", click, true);
+    document.addEventListener('mouseover', mouseOverHandler, true);
+    document.addEventListener('mouseout', mouseOutHandler, true);
+    document.addEventListener('click', clickHandler, true);
 }
 
+// --- Grab all links from selected section ---
 function grabLinksFromSelectedSection() {
-    const c = window._selectedSection || document.body;
-    return [...new Set([...c.querySelectorAll("a[href]")].map(a => a.href))];
+    const container = window._selectedSection || document.body;
+    const anchors = Array.from(container.querySelectorAll("a[href]"));
+    return [...new Set(anchors.map(a => a.href))];
 }
+
+// --- Grab People Also Ask ---
+function grabPeopleAlsoAskLinks() {
+    const heading = [...document.querySelectorAll('div, span, h1, h2, h3')]
+        .find(el => el.innerText.trim() === 'People also ask');
+    if (!heading) return [];
+
+    const container = heading.closest('[role="region"]') || heading.parentElement;
+
+    container.querySelectorAll('[role="button"]').forEach(btn => btn.click());
+
+    return [...new Set(
+        [...container.querySelectorAll('a[href]')]
+            .map(a => a.href)
+            .filter(h => !h.includes('google.com'))
+    )];
+}
+
+// --- Grab AI Overview (placeholder) ---
+function grabAIOverviewLinks() {
+    const heading = [...document.querySelectorAll('div, span, h1, h2, h3')]
+        .find(el => el.innerText.trim() === 'AI Overview');
+    if (!heading) return [];
+
+    const container = heading.closest('[role="region"]') || heading.parentElement;
+
+    return [...new Set(
+        [...container.querySelectorAll('a[href]')].map(a => a.href)
+    )];
+}
+
 
 
 
