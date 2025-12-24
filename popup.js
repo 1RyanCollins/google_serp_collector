@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("grabProducts")?.addEventListener("click", async () => {
-        await grabFeature(grabPopularProductsLinks);
+        await grabFeature(grabDiscussionsLinks);
     });
 
     async function grabFeature(featureFunc) {
@@ -181,12 +181,16 @@ function grabVideosLinks() {
     )];
 }
 
-// --- Grab Popular Products (class njFjte) ---
-function grabPopularProductsLinks() {
-    const containers = Array.from(document.querySelectorAll('.njFjte'));
-    if (!containers.length) return [];
+// --- Grab Discussions and Forums (role="heading" containing discussion/forum) ---
+function grabDiscussionsLinks() {
+    const heading = [...document.querySelectorAll('[role="heading"]')]
+        .find(el => /discussion|forum/i.test(el.innerText.trim()));
+    if (!heading) return [];
 
-    const anchors = containers.flatMap(container => Array.from(container.querySelectorAll('a[href]')));
+    const container = heading.parentElement || heading.closest('[role="region"]');
+    if (!container) return [];
+
+    const anchors = Array.from(container.querySelectorAll('a[href]'));
 
     return [...new Set(
         anchors
@@ -194,6 +198,7 @@ function grabPopularProductsLinks() {
             .filter(h => h && !h.includes('google.com'))
     )];
 }
+
 
 
 
