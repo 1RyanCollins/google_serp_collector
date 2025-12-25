@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
 
     // --- Feature Buttons ---
+
     document.getElementById("grabOrganic")?.addEventListener("click", async () => {
         await grabFeature(grabTopOrganicResults);
     });
@@ -36,7 +37,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- Select Section Mode ---
+    // --- Manually Select Section from SERP ---
+
     document.getElementById("selectSection")?.addEventListener("click", async () => {
         let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.id) return;
@@ -46,10 +48,11 @@ document.addEventListener("DOMContentLoaded", () => {
             func: enableSectionSelection
         });
 
-        alert("Hover over the section you want and click it. Then click 'Grab Links'.");
+        alert("Hover over a section and click it. Then click 'Grab Links'.");
     });
 
     // --- Grab Links from Selected Section ---
+
     document.getElementById("grab")?.addEventListener("click", async () => {
         try {
             let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -70,35 +73,52 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // --- Copy to Clipboard ---
+
     document.getElementById("copy")?.addEventListener("click", async () => {
         const text = document.getElementById("links").value;
-        if (!text) { alert("Nothing to copy!"); return; }
+        if (!text) {
+            alert("Nothing to copy!");
+            return;
+        }
+
         await navigator.clipboard.writeText(text);
         alert("Copied to clipboard!");
     });
 
     // --- Download CSV ---
+
     document.getElementById("download")?.addEventListener("click", () => {
         if (!window._scrapedRows || window._scrapedRows.length === 0) {
             alert("No data to download. Grab links first.");
             return;
         }
 
-        const csvRows = window._scrapedRows.map(r => `"${r.replace(/"/g, '""')}"`);
-        const csvContent = ["url", ...csvRows].join("\n");
+        const csvRows = window._scrapedRows.map(url =>
+            `"${url.replace(/"/g, '""')}"`
+        );
 
+        const csvContent = ["url", ...csvRows].join("\n");
         const blob = new Blob([csvContent], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
-        chrome.downloads.download({ url, filename: "links.csv" });
+
+        chrome.downloads.download({
+            url,
+            filename: "links.csv"
+        });
     });
 
 });
 
-// --- Grab Top Organic Results (Page 1) ---
+/* =========================================================
+   PAGE CONTEXT FUNCTIONS
+   ========================================================= */
+
+// --- Top Organic Results (Page 1 only) ---
 function grabTopOrganicResults() {
     const results = [];
 
-    const organicResults = Array.from(document.querySelectorAll('div.g'));
+    // MjjYud = organic result wrapper
+    const organicResults = Array.from(document.querySelectorAll('.MjjYud'));
 
     for (const result of organicResults) {
         if (results.length >= 10) break;
@@ -115,37 +135,65 @@ function grabTopOrganicResults() {
     return results;
 }
 
-// --- Page Script: Enable section selection ---
+// --- Enable manual section selection ---
 function enableSectionSelection() {
     const style = document.createElement('style');
-    style.innerHTML = `.highlighted-section { outline: 3px solid red !important; cursor: pointer; }`;
+    style.innerHTML = `
+        .highlighted-section {
+            outline: 3px solid red !important;
+            cursor: pointer !important;
+        }
+    `;
     document.head.appendChild(style);
+
+    function mouseOver(e) {
+        e.target.classList.add('highlighted-section');
+        e.stopPropagation();
+    }
+
+    function mouseOut(e) {
+        e.target.classList.remove('highlighted-section');
+        e.stopPropagation();
+    }
 
     function clickHandler(e) {
         e.preventDefault();
         e.stopPropagation();
+
+        document.removeEventListener('mouseover', mouseOver, true);
+        document.removeEventListener('mouseout', mouseOut, true);
         document.removeEventListener('click', clickHandler, true);
+
         window._selectedSection = e.target.closest('[role="region"]') || e.target;
-        alert('Section selected! Now click "Grab Links".');
+        alert('Section selected. Now click "Grab Links".');
     }
 
+    document.addEventListener('mouseover', mouseOver, true);
+    document.addEventListener('mouseout', mouseOut, true);
     document.addEventListener('click', clickHandler, true);
 }
 
-// --- Grab all links from selected section ---
+// --- Grab links from selected section ---
 function grabLinksFromSelectedSection() {
     const container = window._selectedSection || document.body;
-    const anchors = Array.from(container.querySelectorAll("a[href]"));
-    return [...new Set(anchors.map(a => a.href))];
+    const anchors = Array.from(container.querySelectorAll('a[href]'));
+
+    return [...new Set(
+        anchors
+            .map(a => a.href)
+            .filter(h => h && !h.includes('google.com'))
+    )];
 }
 
-// --- Grab People Also Ask ---
+// --- People Also Ask ---
 function grabPeopleAlsoAskLinks() {
     const heading = [...document.querySelectorAll('div, span, h1, h2, h3')]
         .find(el => el.innerText.trim() === 'People also ask');
+
     if (!heading) return [];
 
     const container = heading.closest('[role="region"]') || heading.parentElement;
+
     container.querySelectorAll('[role="button"]').forEach(btn => btn.click());
 
     return [...new Set(
@@ -155,25 +203,38 @@ function grabPeopleAlsoAskLinks() {
     )];
 }
 
-// --- Grab AI Overview ---
+// --- AI Overview ---
 function grabAIOverviewLinks() {
     const heading = [...document.querySelectorAll('div, span, h1, h2, h3')]
         .find(el => el.innerText.trim() === 'AI Overview');
+
     if (!heading) return [];
 
     const container = heading.closest('[role="region"]') || heading.parentElement;
-    return [...new Set([...container.querySelectorAll('a[href]')].map(a => a.href))];
-}
-
-// --- Grab Videos ---
-function grabVideosLinks() {
-    const containers = Array.from(document.querySelectorAll('.KYaZsb'));
-    const anchors = containers.flatMap(c => Array.from(c.querySelectorAll('a[href]')));
 
     return [...new Set(
-        anchors.map(a => a.href).filter(h => h && !h.includes('google.com'))
+        [...container.querySelectorAll('a[href]')]
+            .map(a => a.href)
+            .filter(h => h && !h.includes('google.com'))
     )];
 }
+
+// --- Videos ---
+function grabVideosLinks() {
+    const containers = Array.from(document.querySelectorAll('.KYaZsb'));
+    if (!containers.length) return [];
+
+    const anchors = containers.flatMap(c =>
+        Array.from(c.querySelectorAll('a[href]'))
+    );
+
+    return [...new Set(
+        anchors
+            .map(a => a.href)
+            .filter(h => h && !h.includes('google.com'))
+    )];
+}
+
 
 
 
