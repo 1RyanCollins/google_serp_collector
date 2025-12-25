@@ -1,6 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
 
     // --- Feature Buttons ---
+    document.getElementById("grabOrganic")?.addEventListener("click", async () => {
+        await grabFeature(grabTopOrganicResults);
+    });
+
     document.getElementById("grabPAA")?.addEventListener("click", async () => {
         await grabFeature(grabPeopleAlsoAskLinks);
     });
@@ -11,10 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("grabVideos")?.addEventListener("click", async () => {
         await grabFeature(grabVideosLinks);
-    });
-
-    document.getElementById("grabDiscussions")?.addEventListener("click", async () => {
-        await grabFeature(grabDiscussionsLinks);
     });
 
     async function grabFeature(featureFunc) {
@@ -73,13 +73,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("copy")?.addEventListener("click", async () => {
         const text = document.getElementById("links").value;
         if (!text) { alert("Nothing to copy!"); return; }
-        try {
-            await navigator.clipboard.writeText(text);
-            alert("Copied to clipboard!");
-        } catch (e) {
-            console.error(e);
-            alert("Copy failed: " + e.message);
-        }
+        await navigator.clipboard.writeText(text);
+        alert("Copied to clipboard!");
     });
 
     // --- Download CSV ---
@@ -89,16 +84,36 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const csvHeader = ['url'];
-        const csvRows = window._scrapedRows.map(r => `"${r.replace(/"/g,'""')}"`);
-        const csvContent = [csvHeader.join(','), ...csvRows].join('\n');
+        const csvRows = window._scrapedRows.map(r => `"${r.replace(/"/g, '""')}"`);
+        const csvContent = ["url", ...csvRows].join("\n");
 
         const blob = new Blob([csvContent], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
-        chrome.downloads.download({ url: url, filename: "links.csv" });
+        chrome.downloads.download({ url, filename: "links.csv" });
     });
 
 });
+
+// --- Grab Top Organic Results (Page 1) ---
+function grabTopOrganicResults() {
+    const results = [];
+
+    const organicResults = Array.from(document.querySelectorAll('div.g'));
+
+    for (const result of organicResults) {
+        if (results.length >= 10) break;
+
+        const link = result.querySelector('h3 a[href]');
+        if (!link) continue;
+
+        const href = link.href;
+        if (!href || href.includes('google.com')) continue;
+
+        results.push(href);
+    }
+
+    return results;
+}
 
 // --- Page Script: Enable section selection ---
 function enableSectionSelection() {
@@ -106,27 +121,14 @@ function enableSectionSelection() {
     style.innerHTML = `.highlighted-section { outline: 3px solid red !important; cursor: pointer; }`;
     document.head.appendChild(style);
 
-    function mouseOverHandler(e) {
-        e.target.classList.add('highlighted-section');
-        e.stopPropagation();
-    }
-    function mouseOutHandler(e) {
-        e.target.classList.remove('highlighted-section');
-        e.stopPropagation();
-    }
     function clickHandler(e) {
         e.preventDefault();
         e.stopPropagation();
-        document.removeEventListener('mouseover', mouseOverHandler, true);
-        document.removeEventListener('mouseout', mouseOutHandler, true);
         document.removeEventListener('click', clickHandler, true);
-
-        alert('Section selected! Now click "Grab Links".');
         window._selectedSection = e.target.closest('[role="region"]') || e.target;
+        alert('Section selected! Now click "Grab Links".');
     }
 
-    document.addEventListener('mouseover', mouseOverHandler, true);
-    document.addEventListener('mouseout', mouseOutHandler, true);
     document.addEventListener('click', clickHandler, true);
 }
 
@@ -144,7 +146,6 @@ function grabPeopleAlsoAskLinks() {
     if (!heading) return [];
 
     const container = heading.closest('[role="region"]') || heading.parentElement;
-
     container.querySelectorAll('[role="button"]').forEach(btn => btn.click());
 
     return [...new Set(
@@ -161,37 +162,16 @@ function grabAIOverviewLinks() {
     if (!heading) return [];
 
     const container = heading.closest('[role="region"]') || heading.parentElement;
-
-    return [...new Set(
-        [...container.querySelectorAll('a[href]')].map(a => a.href)
-    )];
+    return [...new Set([...container.querySelectorAll('a[href]')].map(a => a.href))];
 }
 
-// --- Grab Videos (class KYaZsb) ---
+// --- Grab Videos ---
 function grabVideosLinks() {
     const containers = Array.from(document.querySelectorAll('.KYaZsb'));
-    if (!containers.length) return [];
-
-    const anchors = containers.flatMap(container => Array.from(container.querySelectorAll('a[href]')));
+    const anchors = containers.flatMap(c => Array.from(c.querySelectorAll('a[href]')));
 
     return [...new Set(
-        anchors
-            .map(a => a.href)
-            .filter(h => h && !h.includes('google.com'))
-    )];
-}
-
-// --- Grab Discussions and Forums (class MjjYud) ---
-function grabDiscussionsLinks() {
-    const containers = Array.from(document.querySelectorAll('.MjjYud'));
-    if (!containers.length) return [];
-
-    const anchors = containers.flatMap(container => Array.from(container.querySelectorAll('a[href]')));
-
-    return [...new Set(
-        anchors
-            .map(a => a.href)
-            .filter(h => h && !h.includes('google.com'))
+        anchors.map(a => a.href).filter(h => h && !h.includes('google.com'))
     )];
 }
 
