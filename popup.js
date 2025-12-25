@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
 
-    // --- Feature Buttons ---
+    // =========================
+    // FEATURE BUTTONS
+    // =========================
 
     document.getElementById("grabOrganic")?.addEventListener("click", async () => {
         await grabFeature(grabTopOrganicResults);
@@ -37,7 +39,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- Manually Select Section from SERP ---
+    // =========================
+    // MANUAL SECTION SELECTION
+    // =========================
 
     document.getElementById("selectSection")?.addEventListener("click", async () => {
         let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -50,8 +54,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         alert("Hover over a section and click it. Then click 'Grab Links'.");
     });
-
-    // --- Grab Links from Selected Section ---
 
     document.getElementById("grab")?.addEventListener("click", async () => {
         try {
@@ -72,62 +74,60 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // --- Copy to Clipboard ---
+    // =========================
+    // COPY + DOWNLOAD
+    // =========================
 
     document.getElementById("copy")?.addEventListener("click", async () => {
         const text = document.getElementById("links").value;
-        if (!text) {
-            alert("Nothing to copy!");
-            return;
-        }
-
+        if (!text) return alert("Nothing to copy!");
         await navigator.clipboard.writeText(text);
         alert("Copied to clipboard!");
     });
 
-    // --- Download CSV ---
-
     document.getElementById("download")?.addEventListener("click", () => {
-        if (!window._scrapedRows || window._scrapedRows.length === 0) {
-            alert("No data to download. Grab links first.");
+        if (!window._scrapedRows || !window._scrapedRows.length) {
+            alert("No data to download.");
             return;
         }
 
-        const csvRows = window._scrapedRows.map(url =>
-            `"${url.replace(/"/g, '""')}"`
-        );
+        const csv = ["url", ...window._scrapedRows.map(u =>
+            `"${u.replace(/"/g, '""')}"`
+        )].join("\n");
 
-        const csvContent = ["url", ...csvRows].join("\n");
-        const blob = new Blob([csvContent], { type: "text/csv" });
+        const blob = new Blob([csv], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
 
-        chrome.downloads.download({
-            url,
-            filename: "links.csv"
-        });
+        chrome.downloads.download({ url, filename: "links.csv" });
     });
 
 });
 
 /* =========================================================
-   PAGE CONTEXT FUNCTIONS
+   PAGE-CONTEXT FUNCTIONS
    ========================================================= */
 
-// --- Top Organic Results (Page 1 only) ---
+// =========================
+// TOP ORGANIC RESULTS (H3)
+// =========================
 function grabTopOrganicResults() {
     const results = [];
 
-    // MjjYud = organic result wrapper
-    const organicResults = Array.from(document.querySelectorAll('.MjjYud'));
+    const h3s = Array.from(document.querySelectorAll('h3'));
 
-    for (const result of organicResults) {
+    for (const h3 of h3s) {
         if (results.length >= 10) break;
 
-        const link = result.querySelector('h3 a[href]');
+        const link = h3.closest('a[href]');
         if (!link) continue;
+
+        if (!h3.innerText.trim()) continue;
 
         const href = link.href;
         if (!href || href.includes('google.com')) continue;
+
+        // Must be visible (filters hidden SERP features)
+        if (!h3.offsetParent) continue;
 
         results.push(href);
     }
@@ -135,7 +135,9 @@ function grabTopOrganicResults() {
     return results;
 }
 
-// --- Enable manual section selection ---
+// =========================
+// MANUAL SECTION SELECT
+// =========================
 function enableSectionSelection() {
     const style = document.createElement('style');
     style.innerHTML = `
@@ -173,9 +175,12 @@ function enableSectionSelection() {
     document.addEventListener('click', clickHandler, true);
 }
 
-// --- Grab links from selected section ---
+// =========================
+// GRAB LINKS FROM SECTION
+// =========================
 function grabLinksFromSelectedSection() {
     const container = window._selectedSection || document.body;
+
     const anchors = Array.from(container.querySelectorAll('a[href]'));
 
     return [...new Set(
@@ -185,7 +190,9 @@ function grabLinksFromSelectedSection() {
     )];
 }
 
-// --- People Also Ask ---
+// =========================
+// PEOPLE ALSO ASK
+// =========================
 function grabPeopleAlsoAskLinks() {
     const heading = [...document.querySelectorAll('div, span, h1, h2, h3')]
         .find(el => el.innerText.trim() === 'People also ask');
@@ -194,7 +201,7 @@ function grabPeopleAlsoAskLinks() {
 
     const container = heading.closest('[role="region"]') || heading.parentElement;
 
-    container.querySelectorAll('[role="button"]').forEach(btn => btn.click());
+    container.querySelectorAll('[role="button"]').forEach(b => b.click());
 
     return [...new Set(
         [...container.querySelectorAll('a[href]')]
@@ -203,7 +210,9 @@ function grabPeopleAlsoAskLinks() {
     )];
 }
 
-// --- AI Overview ---
+// =========================
+// AI OVERVIEW
+// =========================
 function grabAIOverviewLinks() {
     const heading = [...document.querySelectorAll('div, span, h1, h2, h3')]
         .find(el => el.innerText.trim() === 'AI Overview');
@@ -219,11 +228,11 @@ function grabAIOverviewLinks() {
     )];
 }
 
-// --- Videos ---
+// =========================
+// VIDEOS
+// =========================
 function grabVideosLinks() {
     const containers = Array.from(document.querySelectorAll('.KYaZsb'));
-    if (!containers.length) return [];
-
     const anchors = containers.flatMap(c =>
         Array.from(c.querySelectorAll('a[href]'))
     );
@@ -234,6 +243,7 @@ function grabVideosLinks() {
             .filter(h => h && !h.includes('google.com'))
     )];
 }
+
 
 
 
