@@ -1,5 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
 
+    // =========================
+    // FEATURE BUTTONS
+    // =========================
+
     document.getElementById("grabOrganic")?.addEventListener("click", async () => {
         await grabFeature(grabTopOrganicResults);
     });
@@ -35,6 +39,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // =========================
+    // MANUAL SECTION SELECTION
+    // =========================
+
     document.getElementById("selectSection")?.addEventListener("click", async () => {
         let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.id) return;
@@ -66,6 +74,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // =========================
+    // COPY + DOWNLOAD
+    // =========================
+
     document.getElementById("copy")?.addEventListener("click", async () => {
         const text = document.getElementById("links").value;
         if (!text) return alert("Nothing to copy!");
@@ -92,7 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /* =========================
-   PAGE CONTEXT FUNCTIONS
+   PAGE-CONTEXT FUNCTIONS
    ========================= */
 
 // --- Top Organic Results (H3-based) ---
@@ -120,25 +132,73 @@ function grabTopOrganicResults() {
 // --- Manual Section Selection ---
 function enableSectionSelection() {
     const style = document.createElement('style');
-    style.innerHTML = `.highlighted-section { outline: 3px solid red !important; cursor: pointer !important; }`;
+    style.innerHTML = `
+        .serp-highlight {
+            outline: 3px solid red !important;
+            cursor: pointer !important;
+        }
+    `;
     document.head.appendChild(style);
+
+    let lastHighlighted = null;
+
+    function mouseOver(e) {
+        if (lastHighlighted) lastHighlighted.classList.remove('serp-highlight');
+
+        const target =
+            e.target.closest('.MjjYud') ||
+            e.target.closest('[role="region"]') ||
+            e.target.closest('div');
+
+        if (!target) return;
+
+        target.classList.add('serp-highlight');
+        lastHighlighted = target;
+        e.stopPropagation();
+    }
+
+    function mouseOut() {
+        // do nothing – keep highlight stable
+    }
 
     function clickHandler(e) {
         e.preventDefault();
         e.stopPropagation();
+
+        const selected =
+            e.target.closest('.MjjYud') ||
+            e.target.closest('[role="region"]') ||
+            e.target.closest('div');
+
+        if (!selected) return;
+
+        window._selectedSection = selected;
+
+        // Cleanup listeners
+        document.removeEventListener('mouseover', mouseOver, true);
+        document.removeEventListener('mouseout', mouseOut, true);
         document.removeEventListener('click', clickHandler, true);
-        window._selectedSection = e.target.closest('[role="region"]') || e.target;
+
+        if (lastHighlighted) lastHighlighted.classList.remove('serp-highlight');
+
         alert('Section selected. Now click "Grab Links".');
     }
 
+    document.addEventListener('mouseover', mouseOver, true);
+    document.addEventListener('mouseout', mouseOut, true);
     document.addEventListener('click', clickHandler, true);
 }
 
 // --- Grab Links From Selected Section ---
 function grabLinksFromSelectedSection() {
-    const container = window._selectedSection || document.body;
+    if (!window._selectedSection) return [];
+
+    const anchors = Array.from(
+        window._selectedSection.querySelectorAll('a[href]')
+    );
+
     return [...new Set(
-        Array.from(container.querySelectorAll('a[href]'))
+        anchors
             .map(a => a.href)
             .filter(h => h && !h.includes('google.com'))
     )];
